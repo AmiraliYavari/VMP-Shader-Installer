@@ -27,7 +27,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
 
 ## Shader Packs
 
-Each pack is a folder inside ShaderPacks. Its files are copied to the selected directory with the same relative paths. pack.json and README.txt are not installed.
+Select the VMP launcher folder, the one that contains VMP.ini and the plugins folder. Each pack is a folder inside ShaderPacks laid out like that folder, for example plugins\dxgi.dll. Files are copied with the same relative paths. pack.json and README.txt are not installed.
+
+A pack can also change VMP.ini by listing entries in pack.json:
+
+```json
+"ini": [
+  { "section": "Addons", "key": "ReShade5", "value": "..." }
+]
+```
+
+Close VMP before installing. The anti-cheat may block third-party graphics mods, so use this at your own risk.
 
 ## License
 

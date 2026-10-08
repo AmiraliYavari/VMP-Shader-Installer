@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Interop;
@@ -11,6 +12,8 @@ namespace AYVMPShaderInstaller;
 
 public partial class MainWindow : Window
 {
+    private const string VmpIni = "VMP.ini";
+
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private readonly string _appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AYVMPShaderInstaller");
@@ -74,8 +77,7 @@ public partial class MainWindow : Window
         return full;
     }
 
-    private static bool LooksLikeGameRoot(string path) =>
-        File.Exists(Path.Combine(path, "GTA5.exe")) || Directory.Exists(Path.Combine(path, "update"));
+    private static bool IsVmpRoot(string path) => File.Exists(Path.Combine(path, VmpIni));
 
     private void SetField(System.Windows.Controls.TextBlock block, string text, string brushKey)
     {
@@ -119,6 +121,7 @@ public partial class MainWindow : Window
         var name = folder;
         var version = "";
         var description = "No description provided.";
+        var ini = new List<IniEntry>();
 
         var json = Path.Combine(dir, "pack.json");
         if (File.Exists(json))
@@ -126,14 +129,29 @@ public partial class MainWindow : Window
             try
             {
                 using var doc = JsonDocument.Parse(File.ReadAllText(json));
-                name = ReadString(doc.RootElement, "name") ?? name;
-                version = ReadString(doc.RootElement, "version") ?? version;
-                description = ReadString(doc.RootElement, "description") ?? description;
+                var root = doc.RootElement;
+                name = ReadString(root, "name") ?? name;
+                version = ReadString(root, "version") ?? version;
+                description = ReadString(root, "description") ?? description;
+
+                if (root.ValueKind == JsonValueKind.Object
+                    && root.TryGetProperty("ini", out var list)
+                    && list.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in list.EnumerateArray())
+                    {
+                        var section = ReadString(item, "section");
+                        var key = ReadString(item, "key");
+                        var value = ReadString(item, "value");
+                        if (!string.IsNullOrWhiteSpace(section) && !string.IsNullOrWhiteSpace(key) && value is not null)
+                            ini.Add(new IniEntry(section.Trim(), key.Trim(), value));
+                    }
+                }
             }
             catch (JsonException) { }
         }
 
-        return new PackItem(folder, name, version, description, GetPackFiles(dir).Count());
+        return new PackItem(folder, name, version, description, GetPackFiles(dir).Count(), ini);
     }
 
     private static string? ReadString(JsonElement root, string key) =>
@@ -149,30 +167,37 @@ public partial class MainWindow : Window
 
     private void DetectPath(bool showMessage)
     {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         var pfx86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        var candidates = new List<string>
+
+        var roots = new List<string>
         {
-            Path.Combine(pf, "VMP"), Path.Combine(pf, "VMP Launcher"),
-            Path.Combine(pfx86, "VMP"), Path.Combine(pfx86, "VMP Launcher")
+            Path.Combine(local, "VMP"), Path.Combine(roaming, "VMP"),
+            Path.Combine(pf, "VMP"), Path.Combine(pfx86, "VMP"),
+            Path.Combine(pf, "VMP Launcher"), Path.Combine(pfx86, "VMP Launcher")
         };
-        candidates.AddRange(DriveInfo.GetDrives().Where(d => d.IsReady).SelectMany(d => new[]
+        roots.AddRange(DriveInfo.GetDrives().Where(d => d.IsReady).SelectMany(d => new[]
         {
             Path.Combine(d.RootDirectory.FullName, "VMP"),
             Path.Combine(d.RootDirectory.FullName, "Games", "VMP")
         }));
 
-        var hit = candidates.FirstOrDefault(Directory.Exists);
+        var hit = roots
+            .SelectMany(r => new[] { r, Path.Combine(r, "VMP.app") })
+            .FirstOrDefault(IsVmpRoot);
+
         if (hit is not null)
         {
             PathBox.Text = hit;
             UpdateDirectoryStatus();
-            SetMessage("VMP directory detected.");
+            SetMessage("VMP folder detected.");
         }
         else
         {
             UpdateDirectoryStatus();
-            if (showMessage) SetMessage("VMP was not found automatically. Use Browse to select the directory.", true);
+            if (showMessage) SetMessage("The VMP folder was not found automatically. Use Browse and select the folder that contains VMP.ini.", true);
         }
     }
 
@@ -191,9 +216,9 @@ public partial class MainWindow : Window
         }
         else
         {
-            SetField(DirStatus, "Ready", "Accent");
-            if (LooksLikeGameRoot(path)) SetField(GameStatus, "Found", "Accent");
-            else SetField(GameStatus, "Not detected", "Warn");
+            SetField(DirStatus, "Found", "Accent");
+            if (IsVmpRoot(path)) SetField(GameStatus, "Found", "Accent");
+            else SetField(GameStatus, "Missing", "Warn");
         }
     }
 
@@ -205,7 +230,7 @@ public partial class MainWindow : Window
     {
         using var dialog = new Forms.FolderBrowserDialog
         {
-            Description = "Select your VMP / GTA V directory",
+            Description = "Select the VMP folder that contains VMP.ini",
             UseDescriptionForTitle = true,
             ShowNewFolderButton = false
         };
@@ -223,7 +248,12 @@ public partial class MainWindow : Window
         pack = null!;
         if (!Directory.Exists(target))
         {
-            SetMessage("Select a valid game directory first.", true);
+            SetMessage("Select a valid VMP folder first.", true);
+            return false;
+        }
+        if (!IsVmpRoot(target))
+        {
+            SetMessage("This folder does not contain VMP.ini. Select the VMP launcher folder, not the game folder.", true);
             return false;
         }
         if (PackList.SelectedItem is not PackItem selected)
@@ -231,9 +261,9 @@ public partial class MainWindow : Window
             SetMessage("Select a shader pack first.", true);
             return false;
         }
-        if (selected.FileCount == 0)
+        if (selected.FileCount == 0 && selected.IniEntries.Count == 0)
         {
-            SetMessage("This pack contains no files to install.", true);
+            SetMessage("This pack contains nothing to install.", true);
             return false;
         }
         pack = selected;
@@ -242,9 +272,16 @@ public partial class MainWindow : Window
 
     // ---------- Backup / Install / Restore ----------
 
-    private (string Folder, BackupManifest Manifest) CreateBackupCore(string target, string packFolder, string kind)
+    private static List<string> GetBackupTargets(string source, PackItem pack)
     {
-        var source = Path.Combine(_packsRoot, packFolder);
+        var list = GetPackFiles(source).ToList();
+        if (pack.IniEntries.Count > 0) list.Add(VmpIni);
+        return list.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private (string Folder, BackupManifest Manifest) CreateBackupCore(string target, PackItem pack, string kind)
+    {
+        var source = Path.Combine(_packsRoot, pack.Folder);
         var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         var folder = Path.Combine(BackupsRoot, stamp);
         for (var i = 1; Directory.Exists(folder); i++) folder = Path.Combine(BackupsRoot, stamp + "-" + i);
@@ -256,11 +293,11 @@ public partial class MainWindow : Window
         {
             CreatedAt = DateTime.Now,
             Target = target,
-            Pack = packFolder,
+            Pack = pack.Folder,
             Kind = kind
         };
 
-        foreach (var relative in GetPackFiles(source))
+        foreach (var relative in GetBackupTargets(source, pack))
         {
             var dest = SafeCombine(target, relative);
             var existed = File.Exists(dest);
@@ -289,6 +326,47 @@ public partial class MainWindow : Window
             count++;
         }
         return count;
+    }
+
+    private static void ApplyIni(string target, IReadOnlyList<IniEntry> entries)
+    {
+        if (entries.Count == 0) return;
+        var path = SafeCombine(target, VmpIni);
+        var lines = File.Exists(path) ? File.ReadAllLines(path).ToList() : new List<string>();
+        foreach (var entry in entries) SetIniValue(lines, entry);
+        File.WriteAllLines(path, lines, new UTF8Encoding(false));
+    }
+
+    private static void SetIniValue(List<string> lines, IniEntry entry)
+    {
+        var header = "[" + entry.Section + "]";
+        var start = lines.FindIndex(l => l.Trim().Equals(header, StringComparison.OrdinalIgnoreCase));
+        var newLine = entry.Key + "=" + entry.Value;
+
+        if (start < 0)
+        {
+            if (lines.Count > 0 && lines[^1].Trim().Length > 0) lines.Add("");
+            lines.Add(header);
+            lines.Add(newLine);
+            return;
+        }
+
+        var end = start + 1;
+        while (end < lines.Count && !lines[end].TrimStart().StartsWith('['))
+        {
+            var line = lines[end];
+            var eq = line.IndexOf('=');
+            if (eq > 0 && line[..eq].Trim().Equals(entry.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                lines[end] = newLine;
+                return;
+            }
+            end++;
+        }
+
+        var insertAt = end;
+        while (insertAt > start + 1 && lines[insertAt - 1].Trim().Length == 0) insertAt--;
+        lines.Insert(insertAt, newLine);
     }
 
     private static (int Restored, int Removed) RestoreCore(BackupItem item)
@@ -348,7 +426,7 @@ public partial class MainWindow : Window
         SetBusy(true);
         try
         {
-            var result = await Task.Run(() => CreateBackupCore(target, pack.Folder, "manual"));
+            var result = await Task.Run(() => CreateBackupCore(target, pack, "manual"));
             var saved = result.Manifest.Files.Count(f => f.Existed);
             SetMessage($"Backup created for '{pack.Name}': {saved} existing file(s) saved.");
         }
@@ -366,17 +444,18 @@ public partial class MainWindow : Window
         SetBusy(true);
         try
         {
-            var (_, copied) = await Task.Run(() =>
+            var copied = await Task.Run(() =>
             {
-                var backup = CreateBackupCore(target, pack.Folder, "install");
+                CreateBackupCore(target, pack, "install");
                 var count = CopyPack(target, pack.Folder);
-                return (backup, count);
+                ApplyIni(target, pack.IniEntries);
+                return count;
             });
             SetMessage($"Installed {copied} file(s) from '{pack.Name}'. A backup was saved and can be restored from the Backups list.");
         }
         catch (Exception ex)
         {
-            SetMessage("Install failed: " + ex.Message + " Select the latest backup and use Restore to return to the previous state.", true);
+            SetMessage("Install failed: " + ex.Message + " Make sure VMP is closed. You can select the latest backup and use Restore.", true);
         }
         finally
         {

@@ -1,9 +1,19 @@
 namespace AYVMPShaderInstaller;
 
-public sealed record PackItem(string Folder, string Name, string Version, string Description, int FileCount)
+public sealed record IniEntry(string Section, string Key, string Value);
+
+public sealed record PackItem(string Folder, string Name, string Version, string Description, int FileCount, IReadOnlyList<IniEntry> IniEntries)
 {
     public string VersionLabel => string.IsNullOrWhiteSpace(Version) ? "" : "v" + Version;
-    public string FilesLabel => FileCount == 1 ? "1 file" : $"{FileCount} files";
+
+    public string FilesLabel
+    {
+        get
+        {
+            var files = FileCount == 1 ? "1 file" : $"{FileCount} files";
+            return IniEntries.Count == 0 ? files : $"{files}, {IniEntries.Count} VMP.ini change(s)";
+        }
+    }
 }
 
 public sealed class BackupFileEntry

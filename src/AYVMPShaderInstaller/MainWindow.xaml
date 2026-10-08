@@ -56,8 +56,8 @@
 
                 <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="Game directory" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="The folder where shader files will be installed." Style="{StaticResource Caption}" Margin="0,3,0,12"/>
+                        <TextBlock Text="VMP directory" Style="{StaticResource CardTitle}"/>
+                        <TextBlock Text="The VMP launcher folder that contains VMP.ini and the plugins folder." Style="{StaticResource Caption}" Margin="0,3,0,12"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -126,7 +126,7 @@
                         </DockPanel>
                         <DockPanel Margin="0,0,0,8">
                             <TextBlock x:Name="GameStatus" DockPanel.Dock="Right" Text="-" Foreground="{StaticResource Muted}"/>
-                            <TextBlock Text="Game files" Foreground="{StaticResource Muted}"/>
+                            <TextBlock Text="VMP.ini" Foreground="{StaticResource Muted}"/>
                         </DockPanel>
                         <DockPanel Margin="0,0,0,8">
                             <TextBlock x:Name="PackCountText" DockPanel.Dock="Right" Text="0"/>
@@ -181,7 +181,7 @@
                              Background="{StaticResource Line}" Foreground="{StaticResource Accent}"
                              IsIndeterminate="True" Visibility="Collapsed"/>
                 <TextBlock x:Name="StatusText" Text="Ready." Foreground="{StaticResource Muted}" TextWrapping="Wrap"/>
-                <TextBlock Text="Use only shader packs you have permission to distribute." Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                <TextBlock Text="Close VMP before installing. The anti-cheat may block third-party graphics mods. Use only packs you have permission to distribute." Style="{StaticResource Caption}" Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
     </Grid>
