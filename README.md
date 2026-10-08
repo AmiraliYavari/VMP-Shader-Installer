@@ -1,58 +1,77 @@
 # AY VMP Shader Installer
 
-A Windows/WPF shader-pack installer and manager framework for VMP/GTA V.
+English | [فارسی](README.fa.md)
 
-**Designed & developed by Amirali Yavari.**
+A Windows desktop tool for installing and managing shader packs for VMP / GTA V, built with WPF and .NET.
 
-> Important: this repository does not ship VMP, GTA V, ReShade, or any third-party copyrighted shader files. The included `ExamplePack` is only a template.
+Designed and developed by Amirali Yavari.
 
-## Current features
+## Important Notice
 
-- Modern dark WPF UI
-- VMP/GTA directory detection helpers
+This repository does not include VMP, GTA V, ReShade, or any third-party shader files. The bundled ExamplePack is an empty template. Only install shader packs you have permission to use and distribute. Compatibility of a pack with VMP must be verified by the pack author.
+
+## Features
+
+- Dark WPF interface
+- Automatic detection of common VMP folders
 - Manual directory selection
-- Shader pack discovery from `ShaderPacks/`
-- Relative-path pack installation
-- Automatic backup of overwritten files
-- Backup folder shortcut
-- No admin elevation by default
-- Ready for GitHub
+- Shader pack discovery from the ShaderPacks folder
+- Installation that preserves relative file paths
+- Automatic backup of any file that gets overwritten
+- Quick access to the backup folder
+- Runs without administrator rights
 
 ## Requirements
 
-- Windows 10/11
+- Windows 10 or 11
 - .NET 10 SDK
-- VS Code + C# Dev Kit or Visual Studio
 
-## Run
+## Run From Source
 
 ```powershell
 dotnet restore .\src\AYVMPShaderInstaller\AYVMPShaderInstaller.csproj
 dotnet run --project .\src\AYVMPShaderInstaller\AYVMPShaderInstaller.csproj
 ```
 
-## Publish a standalone EXE
+## Build a Standalone EXE
 
 ```powershell
-dotnet publish .\src\AYVMPShaderInstaller\AYVMPShaderInstaller.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\publish
+powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
 ```
 
-Copy `ShaderPacks/` next to the published executable.
+The output is placed in the publish folder together with a copy of ShaderPacks.
 
-## Pack format
+## Creating a Shader Pack
 
-Each pack is a folder under `ShaderPacks/<PackName>/`. All files are copied using their relative paths. `pack.json` and `README.txt` are metadata and are not installed.
+Each pack is a folder inside ShaderPacks:
+
+```
+ShaderPacks/
+  MyPack/
+    pack.json
+    README.txt
+    ...files to install
+```
+
+All files are copied to the selected directory using the same relative paths. pack.json and README.txt are metadata and are not installed.
+
+## Backups
+
+Before a file is overwritten, the original is copied to:
+
+```
+%LOCALAPPDATA%\AYVMPShaderInstaller\Backups\<date-time>
+```
 
 ## Roadmap
 
-- Real VMP installation detection based on launcher data
-- Pack compatibility/version checks
-- SHA-256 manifest verification
-- Restore/uninstall per pack
-- Pack repository / update channel
-- Digital signing for release builds
-- Optional elevated install mode only when required
+- Detection based on real VMP launcher data
+- Pack version and compatibility checks
+- SHA-256 verification
+- Restore and uninstall per pack
+- Pack repository and update channel
+- Code signing for releases
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See the LICENSE file.
