@@ -2,7 +2,7 @@
 
 English | [فارسی](README.fa.md)
 
-A Windows tool for installing shader packs for VMP / GTA V, with automatic backup of any file it overwrites.
+A Windows tool for installing shader packs for VMP / GTA V, with backup and restore support.
 
 Developed by Amirali Yavari.
 
