@@ -1,0 +1,12 @@
+{
+  "name": "ReShade Test",
+  "version": "0.1.0",
+  "description": "Plain ReShade with default effects for testing.",
+  "ini": [
+    {
+      "section": "Addons",
+      "key": "ReShade5",
+      "value": "ID:7641629a acknowledged that ReShade 5.x has a bug that will lead to game crashes"
+    }
+  ]
+}
