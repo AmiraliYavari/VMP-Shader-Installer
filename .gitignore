@@ -4,4 +4,4 @@ publish/
 .vs/
 *.user
 *.suo
-ShaderPacks/ReShadeTest/
+ShaderPacks/*
