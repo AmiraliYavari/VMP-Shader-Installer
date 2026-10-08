@@ -49,13 +49,21 @@ public partial class MainWindow : Window
 
     private static string ResolvePacksRoot()
     {
+        string? firstFound = null;
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
             var candidate = Path.Combine(dir.FullName, "ShaderPacks");
-            if (Directory.Exists(candidate)) return candidate;
+            if (Directory.Exists(candidate))
+            {
+                if (Directory.EnumerateDirectories(candidate).Any()) return candidate;
+                firstFound ??= candidate;
+            }
             dir = dir.Parent;
         }
+
+        if (firstFound is not null) return firstFound;
+
         var fallback = Path.Combine(AppContext.BaseDirectory, "ShaderPacks");
         Directory.CreateDirectory(fallback);
         return fallback;
@@ -111,6 +119,7 @@ public partial class MainWindow : Window
 
         PackList.ItemsSource = packs;
         if (packs.Count > 0) PackList.SelectedIndex = 0;
+        EmptyPacks.Text = "No shader packs found in:\n" + _packsRoot;
         EmptyPacks.Visibility = packs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         PackCountText.Text = packs.Count.ToString();
     }
